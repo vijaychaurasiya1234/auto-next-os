@@ -13,7 +13,7 @@ export interface Rule {
 
 interface RuleState {
   rules: Rule[];
-  addRule: (statement: string) => void;
+  addRule: (statement: string, priority: number, weight: number) => void;
   removeRule: (id: string) => void;
   updateRule: (id: string, updates: Partial<Omit<Rule, 'id'>>) => void;
   toggleRuleStatus: (id: string) => void;
@@ -60,20 +60,27 @@ export const useRuleStore = create<RuleState>((set) => ({
     },
   ],
 
-  addRule: (statement) => {
+  addRule: (statement, priority, weight) => {
     set((state) => {
       const activeRules = state.rules.filter((rule) => rule.status === 'active');
-      const newPriority = activeRules.length + 1;
+      
+      // Adjust priorities of existing rules if needed
+      const updatedRules = state.rules.map((rule) => {
+        if (rule.status === 'active' && rule.priority >= priority) {
+          return { ...rule, priority: rule.priority + 1 };
+        }
+        return rule;
+      });
       
       return {
         rules: [
-          ...state.rules,
+          ...updatedRules,
           {
             id: generateId(),
             statement,
             status: 'active',
-            priority: newPriority,
-            weight: 0.5, // Default weight
+            priority,
+            weight,
           },
         ],
       };
@@ -99,24 +106,48 @@ export const useRuleStore = create<RuleState>((set) => ({
   },
 
   updateRule: (id, updates) => {
-    set((state) => ({
-      rules: state.rules.map((rule) =>
-        rule.id === id ? { ...rule, ...updates } : rule
-      ),
-    }));
+    set((state) => {
+      const rule = state.rules.find((r) => r.id === id);
+      if (!rule) return state;
+
+      const oldPriority = rule.priority;
+      const newPriority = updates.priority || oldPriority;
+
+      // Update priorities of other rules if priority changed
+      const updatedRules = state.rules.map((r) => {
+        if (r.id === id) {
+          return { ...r, ...updates };
+        }
+        
+        if (r.status === 'active' && updates.priority) {
+          if (oldPriority < newPriority) {
+            // Moving down
+            if (r.priority > oldPriority && r.priority <= newPriority) {
+              return { ...r, priority: r.priority - 1 };
+            }
+          } else if (oldPriority > newPriority) {
+            // Moving up
+            if (r.priority >= newPriority && r.priority < oldPriority) {
+              return { ...r, priority: r.priority + 1 };
+            }
+          }
+        }
+        
+        return r;
+      });
+
+      return { rules: updatedRules };
+    });
   },
 
   toggleRuleStatus: (id) => {
     set((state) => {
-      // Get the rule to toggle
       const ruleToToggle = state.rules.find((rule) => rule.id === id);
       
       if (!ruleToToggle) return state;
       
-      // Get other rules, excluding the one to toggle
       const otherRules = state.rules.filter((rule) => rule.id !== id);
       
-      // If activating a rule
       if (ruleToToggle.status === 'inactive') {
         const activeRules = otherRules.filter((rule) => rule.status === 'active');
         const inactiveRules = otherRules.filter((rule) => rule.status === 'inactive');
@@ -124,17 +155,15 @@ export const useRuleStore = create<RuleState>((set) => ({
         const updatedRule = {
           ...ruleToToggle,
           status: 'active' as RuleStatus,
-          priority: activeRules.length + 1, // Add to end of active rules
+          priority: activeRules.length + 1,
         };
         
         return { rules: [...activeRules, updatedRule, ...inactiveRules] };
       }
       
-      // If deactivating a rule
       const activeRules = otherRules.filter((rule) => rule.status === 'active');
       const inactiveRules = otherRules.filter((rule) => rule.status === 'inactive');
       
-      // Recalculate priorities for active rules
       const updatedActiveRules = activeRules.map((rule, index) => ({
         ...rule,
         priority: index + 1,
@@ -152,20 +181,18 @@ export const useRuleStore = create<RuleState>((set) => ({
   moveRuleUp: (id) => {
     set((state) => {
       const ruleIndex = state.rules.findIndex((rule) => rule.id === id);
-      if (ruleIndex <= 0) return state; // Already at the top or not found
+      if (ruleIndex <= 0) return state;
       
       const rule = state.rules[ruleIndex];
-      if (rule.status !== 'active') return state; // Only active rules can be moved
+      if (rule.status !== 'active') return state;
       
       const prevRule = state.rules[ruleIndex - 1];
-      if (prevRule.status !== 'active') return state; // Can't swap with inactive rule
+      if (prevRule.status !== 'active') return state;
       
-      // Swap priorities
       const updatedRules = [...state.rules];
       updatedRules[ruleIndex] = { ...rule, priority: prevRule.priority };
       updatedRules[ruleIndex - 1] = { ...prevRule, priority: rule.priority };
       
-      // Sort rules by priority for active rules
       const activeRules = updatedRules
         .filter((r) => r.status === 'active')
         .sort((a, b) => a.priority - b.priority);
@@ -182,18 +209,16 @@ export const useRuleStore = create<RuleState>((set) => ({
       const ruleIndex = activeRules.findIndex((rule) => rule.id === id);
       
       if (ruleIndex === -1 || ruleIndex >= activeRules.length - 1) {
-        return state; // Not found or already at the bottom
+        return state;
       }
       
       const rule = activeRules[ruleIndex];
       const nextRule = activeRules[ruleIndex + 1];
       
-      // Swap priorities
       const updatedActiveRules = [...activeRules];
       updatedActiveRules[ruleIndex] = { ...rule, priority: nextRule.priority };
       updatedActiveRules[ruleIndex + 1] = { ...nextRule, priority: rule.priority };
       
-      // Sort rules by priority
       const sortedActiveRules = updatedActiveRules.sort((a, b) => a.priority - b.priority);
       const inactiveRules = state.rules.filter((rule) => rule.status === 'inactive');
       

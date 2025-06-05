@@ -12,6 +12,8 @@ import { useToast } from '../ui/Toast';
 const RuleSection: React.FC = () => {
   const { rules, addRule, toggleRuleStatus, moveRuleUp, moveRuleDown } = useRuleStore();
   const [newRuleStatement, setNewRuleStatement] = useState('');
+  const [newRulePriority, setNewRulePriority] = useState(1);
+  const [newRuleWeight, setNewRuleWeight] = useState(0.5);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isVisualizeModalOpen, setIsVisualizeModalOpen] = useState(false);
   const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
@@ -20,8 +22,10 @@ const RuleSection: React.FC = () => {
 
   const handleAddRule = () => {
     if (newRuleStatement.trim()) {
-      addRule(newRuleStatement.trim());
+      addRule(newRuleStatement.trim(), newRulePriority, newRuleWeight);
       setNewRuleStatement('');
+      setNewRulePriority(1);
+      setNewRuleWeight(0.5);
       toast({
         title: 'Rule added',
         description: 'The new rule has been added to the active rules.',
@@ -30,11 +34,19 @@ const RuleSection: React.FC = () => {
     }
   };
 
+  // Get available priorities for editing
+  const getAvailablePriorities = (currentPriority: number) => {
+    const activeRules = rules.filter(r => r.status === 'active');
+    const priorities = Array.from({ length: activeRules.length }, (_, i) => i + 1);
+    return priorities;
+  };
+
   const handleOpenEditModal = (rule: Rule) => {
     setSelectedRule(rule);
     setEditedRule({
       statement: rule.statement,
       weight: rule.weight,
+      priority: rule.priority,
     });
     setIsEditModalOpen(true);
   };
@@ -71,19 +83,54 @@ const RuleSection: React.FC = () => {
 
   return (
     <Card className="mb-6 animate-fade-in">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle>Rules Engine</CardTitle>
-        <div className="flex items-center space-x-2">
+      <CardHeader className="flex flex-col items-center justify-center pb-2">
+        <CardTitle className="mb-4">Rules Engine</CardTitle>
+        <div className="flex flex-col items-center space-y-4 w-full max-w-2xl">
           <Input
             type="text"
             placeholder="Type a rule..."
             value={newRuleStatement}
             onChange={(e) => setNewRuleStatement(e.target.value)}
-            className="w-[300px]"
+            className="w-full text-center"
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleAddRule();
             }}
           />
+          <div className="flex items-center space-x-4 w-full">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Priority
+              </label>
+              <select
+                value={newRulePriority}
+                onChange={(e) => setNewRulePriority(Number(e.target.value))}
+                className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+              >
+                {Array.from({ length: activeRules.length + 1 }, (_, i) => i + 1).map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Weight
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={newRuleWeight}
+                onChange={(e) => setNewRuleWeight(Number(e.target.value))}
+                className="w-full"
+              />
+              <div className="text-center text-sm text-neutral-600">
+                {newRuleWeight.toFixed(1)}
+              </div>
+            </div>
+          </div>
           <Button onClick={handleAddRule} disabled={!newRuleStatement.trim()}>
             <PlusCircle size={16} className="mr-1" />
             Add Rule
@@ -91,9 +138,9 @@ const RuleSection: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        <div className="overflow-y-auto max-h-[400px]">
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="sticky top-0 bg-white">
               <tr className="border-b border-neutral-200 text-left">
                 <th className="pb-2 pt-2 pl-4 pr-2 font-medium text-neutral-700">Rule Statement</th>
                 <th className="pb-2 pt-2 px-2 font-medium text-neutral-700 w-[100px]">Status</th>
@@ -262,6 +309,29 @@ const RuleSection: React.FC = () => {
               className="w-full"
             />
           </div>
+          {selectedRule?.status === 'active' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Priority
+              </label>
+              <select
+                value={editedRule.priority}
+                onChange={(e) =>
+                  setEditedRule({
+                    ...editedRule,
+                    priority: Number(e.target.value),
+                  })
+                }
+                className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+              >
+                {getAvailablePriorities(selectedRule.priority).map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="mb-6">
             <label className="block text-sm font-medium text-neutral-700 mb-1">
               Weight (0.00 - 1.00)
@@ -326,7 +396,16 @@ const RuleSection: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-medium text-neutral-700 mb-1">Priority</h3>
                   <p className="text-neutral-800">
-                    {selectedRule.status === 'active' ? selectedRule.priority : 'N/A'}
+                    {selectedRule.status === 'active' ? (
+                      <>
+                        {selectedRule.priority} 
+                        <span className="text-sm text-neutral-500 ml-1">
+                          (Rules are executed in priority order, 1 being highest)
+                        </span>
+                      </>
+                    ) : (
+                      'N/A - Inactive'
+                    )}
                   </p>
                 </div>
                 <div>
@@ -356,7 +435,11 @@ const RuleSection: React.FC = () => {
                     When this rule is active and applied to scheduling:
                   </p>
                   <ul className="list-disc pl-5 text-sm text-neutral-700 space-y-1">
-                    <li>Priority {selectedRule.priority} in execution order</li>
+                    <li>
+                      Priority {selectedRule.priority} in execution order
+                      {selectedRule.priority === 1 && " (Highest priority)"}
+                      {selectedRule.priority === activeRules.length && " (Lowest priority)"}
+                    </li>
                     <li>
                       Influence strength of {(selectedRule.weight * 100).toFixed()}% on decisions
                     </li>

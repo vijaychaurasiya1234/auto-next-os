@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Eye, FileText, Import, Plus, Trash2 } from 'lucide-react';
+import { Edit, Eye, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Patient, usePatientStore } from '../../store/patientStore';
@@ -14,7 +14,6 @@ const PatientSection: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { toast } = useToast();
 
   const handleDelete = (patientId: string) => {
@@ -42,24 +41,17 @@ const PatientSection: React.FC = () => {
     <Card className="h-full animate-fade-in">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle>Patients</CardTitle>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-            <Import size={16} className="mr-1" />
-            Import
-          </Button>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus size={16} className="mr-1" />
-            Add Patient
-          </Button>
-        </div>
+        <Button onClick={() => setIsAddModalOpen(true)}>
+          <Plus size={16} className="mr-1" />
+          Add Patient
+        </Button>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        <div className="overflow-y-auto max-h-[400px]">
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="sticky top-0 bg-white">
               <tr className="border-b border-neutral-200 text-left">
                 <th className="pb-2 pt-2 pl-4 pr-2 font-medium text-neutral-700">Name</th>
-                <th className="pb-2 pt-2 px-2 font-medium text-neutral-700">ID</th>
                 <th className="pb-2 pt-2 px-2 font-medium text-neutral-700">Age/Gender</th>
                 <th className="pb-2 pt-2 px-2 font-medium text-neutral-700">Symptoms</th>
                 <th className="pb-2 pt-2 px-2 font-medium text-neutral-700">Preferred Date</th>
@@ -74,9 +66,6 @@ const PatientSection: React.FC = () => {
                 >
                   <td className="py-3 pl-4 pr-2 text-neutral-800 font-medium">
                     {patient.name}
-                  </td>
-                  <td className="py-3 px-2 text-neutral-600">
-                    {patient.patientId}
                   </td>
                   <td className="py-3 px-2 text-neutral-600">
                     {patient.age} / {patient.gender}
@@ -207,20 +196,6 @@ const PatientSection: React.FC = () => {
                     ))}
                   </ul>
                 </div>
-                
-                <h3 className="text-base font-medium mb-2">Documents</h3>
-                {selectedPatient.documents && selectedPatient.documents.length > 0 ? (
-                  <div className="space-y-2">
-                    {selectedPatient.documents.map((doc, idx) => (
-                      <div key={idx} className="flex items-center p-2 bg-neutral-50 rounded-md">
-                        <FileText size={16} className="text-primary-500 mr-2" />
-                        <span className="text-sm">{doc}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-500">No documents available</p>
-                )}
               </div>
             </div>
             <div className="flex justify-end mt-4">
@@ -228,53 +203,6 @@ const PatientSection: React.FC = () => {
             </div>
           </div>
         )}
-      </Modal>
-
-      {/* Import Modal */}
-      <Modal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        title="Import Patients"
-      >
-        <div className="p-6">
-          <div className="border-2 border-dashed border-neutral-300 rounded-lg p-8 text-center mb-6">
-            <div className="mb-4">
-              <Import size={36} className="mx-auto text-neutral-400" />
-            </div>
-            <h3 className="text-lg font-medium mb-2">Upload Patient Data</h3>
-            <p className="text-neutral-500 mb-4">
-              Drag and drop a CSV or Excel file, or click to browse
-            </p>
-            <Button>Browse Files</Button>
-          </div>
-          <div className="mb-6">
-            <h4 className="text-sm font-medium mb-2">Expected Format</h4>
-            <p className="text-sm text-neutral-500 mb-2">
-              Your file should include the following columns:
-            </p>
-            <div className="bg-neutral-50 p-3 rounded-md text-sm">
-              <code>Name, ID, Age, Gender, Symptoms, Preferred Date, Contact, Insurance</code>
-            </div>
-          </div>
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsImportModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              setIsImportModalOpen(false);
-              toast({
-                title: 'Import successful',
-                description: 'Patient data has been imported successfully.',
-                variant: 'success',
-              });
-            }}>
-              Import
-            </Button>
-          </div>
-        </div>
       </Modal>
     </Card>
   );
